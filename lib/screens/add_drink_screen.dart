@@ -17,7 +17,6 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
   final DatabaseHelper _db = DatabaseHelper.instance;
   final _formKey = GlobalKey<FormState>();
   final _priceController = TextEditingController();
-  final _notesController = TextEditingController();
 
   List<Flavor> _flavors = [];
   Flavor? _selectedFlavor;
@@ -34,7 +33,6 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
   @override
   void dispose() {
     _priceController.dispose();
-    _notesController.dispose();
     super.dispose();
   }
 
@@ -69,7 +67,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
         flavorId: _selectedFlavor!.id!,
         pricePaid: double.parse(_priceController.text),
         timestamp: DateFormat('yyyy-MM-dd HH:mm:ss').format(_selectedDateTime),
-        notes: _notesController.text.isEmpty ? null : _notesController.text,
+        notes: null, // Notes removed from UI
       );
 
       await _db.createLog(log);
@@ -155,10 +153,9 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                         _buildPriceField(),
                         const SizedBox(height: 24),
                         _buildDateTimeSelector(),
-                        const SizedBox(height: 24),
-                        _buildNotesField(),
                         const SizedBox(height: 32),
                         _buildSaveButton(),
+                        const SizedBox(height: 24), // Extra padding at bottom
                       ],
                     ),
                   ),
@@ -215,19 +212,10 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
               items: _flavors.map((flavor) {
                 return DropdownMenuItem(
                   value: flavor,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        flavor.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        '${flavor.ml}ml • ${flavor.caffeineMg}mg caffeine',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
+                  child: Text(
+                    '${flavor.name} • ${flavor.ml}ml • ${flavor.caffeineMg}mg',
+                    style: const TextStyle(fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 );
               }).toList(),
@@ -328,34 +316,6 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
   }
 
   /// Builds the notes input field
-  Widget _buildNotesField() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Notes (Optional)',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _notesController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Add any notes...',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Builds the save button
   Widget _buildSaveButton() {
     return ElevatedButton(

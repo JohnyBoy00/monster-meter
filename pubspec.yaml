@@ -1,5 +1,5 @@
 name: monster_meter
-description: Track your daily Monster Energy drink consumption
+description: Track your Monster Energy drink consumption
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -13,12 +13,20 @@ dependencies:
   sqflite: ^2.3.0
   path: ^1.8.3
   intl: ^0.18.1
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  image_path: "Monster-Meter-icon.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "Monster-Meter-icon-padded.png"
 

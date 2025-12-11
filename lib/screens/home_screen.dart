@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../database/database_helper.dart';
 import '../models/log_with_flavor.dart';
+import '../utils/currency_helper.dart';
 import 'add_drink_screen.dart';
 import 'history_screen.dart';
 import 'manage_flavors_screen.dart';
+import 'settings_screen.dart';
 
 /// Home screen displaying today's drink statistics and recent drinks
 class HomeScreen extends StatefulWidget {
@@ -74,6 +76,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
   }
 
+  /// Navigates to settings screen
+  Future<void> _navigateToSettings() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const SettingsScreen()),
+    );
+    // Reload currency and refresh display
+    await CurrencyHelper.initialize();
+    _loadData();
+  }
+
   /// Deletes a log entry with confirmation
   Future<void> _deleteLog(int logId) async {
     final confirmed = await showDialog<bool>(
@@ -116,6 +129,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.history),
             onPressed: _navigateToHistory,
             tooltip: 'History',
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _navigateToSettings,
+            tooltip: 'Settings',
           ),
         ],
       ),
@@ -178,11 +196,19 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        _buildStatCard(
-          'Total Spent',
-          '\$${_totalSpending.toStringAsFixed(2)}',
-          Icons.attach_money,
-          Colors.blue,
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Total Spent',
+                CurrencyHelper.formatPriceCached(_totalSpending),
+                Icons.account_balance_wallet,
+                Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox()), // Empty space for symmetry
+          ],
         ),
       ],
     );
@@ -282,7 +308,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${flavor.ml}ml • ${flavor.caffeineMg}mg caffeine'),
-            Text('\$${log.pricePaid.toStringAsFixed(2)} • $time'),
+            Text('${CurrencyHelper.formatPriceCached(log.pricePaid)} • $time'),
             if (log.notes != null && log.notes!.isNotEmpty)
               Text(log.notes!, style: const TextStyle(fontStyle: FontStyle.italic)),
           ],

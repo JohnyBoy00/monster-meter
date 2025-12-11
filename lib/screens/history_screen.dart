@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../database/database_helper.dart';
 import '../models/log_with_flavor.dart';
+import '../utils/currency_helper.dart';
 
 /// Screen displaying drink history and statistics
 class HistoryScreen extends StatefulWidget {
@@ -178,8 +179,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
                 _buildStatItem(
                   'Total Spent',
-                  '\$${stats['spending'].toStringAsFixed(2)}',
-                  Icons.attach_money,
+                  CurrencyHelper.formatPriceCached(stats['spending']),
+                  Icons.account_balance_wallet,
                   Colors.blue,
                 ),
               ],
@@ -279,7 +280,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${flavor.ml}ml • ${flavor.caffeineMg}mg caffeine'),
-            Text('\$${log.pricePaid.toStringAsFixed(2)} • $time'),
+            Text('${CurrencyHelper.formatPriceCached(log.pricePaid)} • $time'),
             if (log.notes != null && log.notes!.isNotEmpty)
               Text(
                 log.notes!,
