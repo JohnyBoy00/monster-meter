@@ -21,7 +21,7 @@ class MonsterMeterApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
         scaffoldBackgroundColor: const Color(0xFF1a1a1a),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           color: const Color(0xFF2a2a2a),
           elevation: 4,
           shape: RoundedRectangleBorder(
