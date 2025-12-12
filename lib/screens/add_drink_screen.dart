@@ -4,6 +4,7 @@ import '../database/database_helper.dart';
 import '../models/flavor.dart';
 import '../models/log.dart';
 import '../models/user.dart';
+import '../utils/currency_helper.dart';
 
 /// Screen for adding a new drink entry
 class AddDrinkScreen extends StatefulWidget {
@@ -207,15 +208,34 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
               value: _selectedFlavor,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.local_drink),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               items: _flavors.map((flavor) {
                 return DropdownMenuItem(
                   value: flavor,
-                  child: Text(
-                    '${flavor.name} • ${flavor.ml}ml • ${flavor.caffeineMg}mg',
-                    style: const TextStyle(fontSize: 14),
-                    overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (flavor.imagePath != null) ...[
+                        Image.asset(
+                          flavor.imagePath!,
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.local_drink, size: 24);
+                          },
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Flexible(
+                        child: Text(
+                          flavor.name,
+                          style: const TextStyle(fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 );
               }).toList(),
@@ -229,6 +249,20 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                 return null;
               },
             ),
+            if (_selectedFlavor != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${_selectedFlavor!.ml}ml • ${_selectedFlavor!.caffeineMg}mg caffeine',
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -253,10 +287,25 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
             TextFormField(
               controller: _priceController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.attach_money),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                prefixIcon: Align(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: 1.0,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Text(
+                      CurrencyHelper.getCachedSymbol(),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
                 hintText: '0.00',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {

@@ -268,10 +268,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.green.withOpacity(0.2),
-          child: const Icon(Icons.local_drink, color: Colors.green),
-        ),
+        leading: flavor.imagePath != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(
+                  flavor.imagePath!,
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return CircleAvatar(
+                      backgroundColor: Colors.green.withOpacity(0.2),
+                      child: const Icon(Icons.local_drink, color: Colors.green),
+                    );
+                  },
+                ),
+              )
+            : CircleAvatar(
+                backgroundColor: Colors.green.withOpacity(0.2),
+                child: const Icon(Icons.local_drink, color: Colors.green),
+              ),
         title: Text(
           flavor.name,
           style: const TextStyle(fontWeight: FontWeight.bold),

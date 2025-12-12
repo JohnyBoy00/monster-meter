@@ -337,15 +337,36 @@ class _ManageFlavorsScreenState extends State<ManageFlavorsScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: flavor.isActive
-              ? Colors.green.withOpacity(0.2)
-              : Colors.grey.withOpacity(0.2),
-          child: Icon(
-            Icons.local_drink,
-            color: flavor.isActive ? Colors.green : Colors.grey,
-          ),
-        ),
+        leading: flavor.imagePath != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(
+                  flavor.imagePath!,
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return CircleAvatar(
+                      backgroundColor: flavor.isActive
+                          ? Colors.green.withOpacity(0.2)
+                          : Colors.grey.withOpacity(0.2),
+                      child: Icon(
+                        Icons.local_drink,
+                        color: flavor.isActive ? Colors.green : Colors.grey,
+                      ),
+                    );
+                  },
+                ),
+              )
+            : CircleAvatar(
+                backgroundColor: flavor.isActive
+                    ? Colors.green.withOpacity(0.2)
+                    : Colors.grey.withOpacity(0.2),
+                child: Icon(
+                  Icons.local_drink,
+                  color: flavor.isActive ? Colors.green : Colors.grey,
+                ),
+              ),
         title: Text(
           flavor.name,
           style: TextStyle(

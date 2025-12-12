@@ -5,6 +5,7 @@ class Flavor {
   final int ml;
   final int caffeineMg;
   final bool isActive;
+  final String? imagePath;
 
   /// Constructor for Flavor model
   Flavor({
@@ -13,6 +14,7 @@ class Flavor {
     required this.ml,
     required this.caffeineMg,
     this.isActive = true,
+    this.imagePath,
   });
 
   /// Converts Flavor object to a Map for database insertion
@@ -23,6 +25,7 @@ class Flavor {
       'ml': ml,
       'caffeine_mg': caffeineMg,
       'is_active': isActive ? 1 : 0,
+      'image_path': imagePath,
     };
   }
 
@@ -34,6 +37,7 @@ class Flavor {
       ml: map['ml'] as int,
       caffeineMg: map['caffeine_mg'] as int,
       isActive: map['is_active'] == 1,
+      imagePath: map['image_path'] as String?,
     );
   }
 
@@ -44,6 +48,7 @@ class Flavor {
     int? ml,
     int? caffeineMg,
     bool? isActive,
+    String? imagePath,
   }) {
     return Flavor(
       id: id ?? this.id,
@@ -51,6 +56,7 @@ class Flavor {
       ml: ml ?? this.ml,
       caffeineMg: caffeineMg ?? this.caffeineMg,
       isActive: isActive ?? this.isActive,
+      imagePath: imagePath ?? this.imagePath,
     );
   }
 }

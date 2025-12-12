@@ -26,9 +26,17 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Handles database upgrades
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE flavors ADD COLUMN image_path TEXT');
+    }
   }
 
   /// Creates the database tables
@@ -48,7 +56,8 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         ml INTEGER NOT NULL,
         caffeine_mg INTEGER NOT NULL,
-        is_active INTEGER NOT NULL DEFAULT 1
+        is_active INTEGER NOT NULL DEFAULT 1,
+        image_path TEXT
       )
     ''');
 
@@ -69,15 +78,19 @@ class DatabaseHelper {
     // Insert default user
     await db.insert('users', {'username': 'default_user'});
 
-    // Insert some popular Monster Energy flavors
+    // Insert some popular Monster Energy flavors with images
     final defaultFlavors = [
-      {'name': 'Original', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1},
-      {'name': 'Ultra White', 'ml': 500, 'caffeine_mg': 140, 'is_active': 1},
-      {'name': 'Ultra Fiesta', 'ml': 500, 'caffeine_mg': 140, 'is_active': 1},
-      {'name': 'Ultra Paradise', 'ml': 500, 'caffeine_mg': 140, 'is_active': 1},
-      {'name': 'Ultra Sunrise', 'ml': 500, 'caffeine_mg': 140, 'is_active': 1},
-      {'name': 'Pipeline Punch', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1},
-      {'name': 'Mango Loco', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1},
+      {'name': 'Original', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/orginal-monster.webp'},
+      {'name': 'Pipeline Punch', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/pipeline-punch.webp'},
+      {'name': 'Pacific Punch', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/pacific-punch.webp'},
+      {'name': 'Rio Punch', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/rio-punch.webp'},
+      {'name': 'Mango Loco', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/mucho-loco.webp'},
+      {'name': 'Zero Sugar Ultra', 'ml': 500, 'caffeine_mg': 140, 'is_active': 1, 'image_path': 'assets/images/flavors/Zero-sugar-ultra.webp'},
+      {'name': 'Zero Sugar Ultra Rosa', 'ml': 500, 'caffeine_mg': 140, 'is_active': 1, 'image_path': 'assets/images/flavors/Zero-sugar-ultra-rosa.webp'},
+      {'name': 'Aussie Lemonade', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/Aussie-lemonade.webp'},
+      {'name': 'Peachy Keen', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/peachy-keen.webp'},
+      {'name': 'The Doctor', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/The-doctor.webp'},
+      {'name': 'Lando Norris', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/Lando-norris.webp'},
     ];
 
     for (var flavor in defaultFlavors) {
@@ -205,7 +218,7 @@ class DatabaseHelper {
   Future<List<LogWithFlavor>> getLogsByDate(String date) async {
     final db = await database;
     final maps = await db.rawQuery('''
-      SELECT l.*, f.name, f.ml, f.caffeine_mg, f.is_active
+      SELECT l.*, f.name, f.ml, f.caffeine_mg, f.is_active, f.image_path
       FROM logs l
       INNER JOIN flavors f ON l.flavor_id = f.id
       WHERE DATE(l.timestamp) = DATE(?)
@@ -224,7 +237,7 @@ class DatabaseHelper {
   Future<List<LogWithFlavor>> getLogsWithFlavors() async {
     final db = await database;
     final maps = await db.rawQuery('''
-      SELECT l.*, f.name, f.ml, f.caffeine_mg, f.is_active
+      SELECT l.*, f.name, f.ml, f.caffeine_mg, f.is_active, f.image_path
       FROM logs l
       INNER JOIN flavors f ON l.flavor_id = f.id
       ORDER BY l.timestamp DESC

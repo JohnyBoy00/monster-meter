@@ -23,10 +23,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/flavors/
+    - assets/images/icons/
 
 flutter_launcher_icons:
   android: true
-  image_path: "Monster-Meter-icon.png"
+  image_path: "assets/images/icons/Monster-Meter-icon.png"
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "Monster-Meter-icon-padded.png"
 
