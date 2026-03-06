@@ -92,6 +92,7 @@ class DatabaseHelper {
       {'name': 'Peachy Keen', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/peachy-keen.webp'},
       {'name': 'The Doctor', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/The-doctor.webp'},
       {'name': 'Lando Norris', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/Lando-norris.webp'},
+      {'name': 'Strawberry Dreams', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/strawberry-dreams.webp'},
     ];
 
     for (var flavor in defaultFlavors) {
@@ -415,10 +416,33 @@ class DatabaseHelper {
     };
   }
 
-  /// Gets most drank flavor statistics
-  Future<List<Map<String, dynamic>>> getMostDrankFlavors({int limit = 10}) async {
+  /// Gets most drank flavor statistics, optionally filtered by date range
+  /// [startDate] and [endDate] in 'yyyy-MM-dd' format; if both null, returns all-time
+  Future<List<Map<String, dynamic>>> getMostDrankFlavors({
+    int limit = 10,
+    String? startDate,
+    String? endDate,
+  }) async {
     final db = await database;
-    final result = await db.rawQuery('''
+    final useRange = startDate != null && endDate != null;
+    final result = await db.rawQuery(
+      useRange
+          ? '''
+      SELECT 
+        f.id,
+        f.name,
+        f.image_path,
+        COUNT(l.id) as drink_count,
+        SUM(f.caffeine_mg) as total_caffeine,
+        SUM(l.price_paid) as total_spending
+      FROM logs l
+      INNER JOIN flavors f ON l.flavor_id = f.id
+      WHERE DATE(l.timestamp) >= ? AND DATE(l.timestamp) <= ?
+      GROUP BY f.id, f.name, f.image_path
+      ORDER BY drink_count DESC
+      LIMIT ?
+    '''
+          : '''
       SELECT 
         f.id,
         f.name,
@@ -431,7 +455,9 @@ class DatabaseHelper {
       GROUP BY f.id, f.name, f.image_path
       ORDER BY drink_count DESC
       LIMIT ?
-    ''', [limit]);
+    ''',
+      useRange ? [startDate, endDate, limit] : [limit],
+    );
 
     return result.map((row) => {
       'id': row['id'] as int,

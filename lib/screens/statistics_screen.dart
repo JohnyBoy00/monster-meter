@@ -47,7 +47,28 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       year: _currentMonth.year,
       month: _currentMonth.month,
     );
-    final flavors = await _db.getMostDrankFlavors();
+
+    // Most drank flavors for the currently selected period
+    String? flavorStart;
+    String? flavorEnd;
+    if (_selectedPeriod == 'week') {
+      flavorStart = weekStartStr;
+      flavorEnd = DateFormat('yyyy-MM-dd').format(
+        _currentWeekStart.add(const Duration(days: 6)),
+      );
+    } else {
+      flavorStart = DateFormat('yyyy-MM-dd').format(
+        DateTime(_currentMonth.year, _currentMonth.month, 1),
+      );
+      flavorEnd = DateFormat('yyyy-MM-dd').format(
+        DateTime(_currentMonth.year, _currentMonth.month + 1, 0),
+      );
+    }
+    final flavors = await _db.getMostDrankFlavors(
+      limit: 10,
+      startDate: flavorStart,
+      endDate: flavorEnd,
+    );
 
     setState(() {
       _weeklyStats = weekly;
@@ -413,16 +434,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       chartTitle,
       Icons.local_drink,
       Colors.green,
-      BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
+      LineChart(
+        LineChartData(
+          minY: 0,
           maxY: maxY,
-          barTouchData: BarTouchData(
-            enabled: true,
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (group) => const Color(0xFF1E1E1E),
-              tooltipRoundedRadius: 8,
-            ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: maxY / 5,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: Colors.white.withOpacity(0.05),
+                strokeWidth: 1,
+              );
+            },
           ),
           titlesData: FlTitlesData(
             show: true,
@@ -451,7 +476,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       ),
                     );
                   } else {
-                    // Monthly view: show week range
                     final weekEnd = date.add(const Duration(days: 6));
                     return Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -466,7 +490,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     );
                   }
                 },
-                reservedSize: _selectedPeriod == 'week' ? 40 : 50,
+                reservedSize: _selectedPeriod == 'week' ? 50 : 60,
               ),
             ),
             leftTitles: AxisTitles(
@@ -481,7 +505,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ),
                   );
                 },
-                reservedSize: 40,
+                reservedSize: 50,
               ),
             ),
             topTitles: const AxisTitles(
@@ -491,33 +515,46 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               sideTitles: SideTitles(showTitles: false),
             ),
           ),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: maxY / 5,
-            getDrawingHorizontalLine: (value) {
-              return FlLine(
-                color: Colors.white.withOpacity(0.05),
-                strokeWidth: 1,
-              );
-            },
-          ),
           borderData: FlBorderData(show: false),
-          barGroups: spots.asMap().entries.map((entry) {
-            return BarChartGroupData(
-              x: entry.key,
-              barRods: [
-                BarChartRodData(
-                  toY: entry.value.y,
-                  color: Colors.green,
-                  width: 20,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(4),
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (touchedSpot) => const Color(0xFF1E1E1E),
+              tooltipRoundedRadius: 8,
+            ),
+          ),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              color: Colors.green,
+              barWidth: 3,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 4,
+                    color: Colors.green,
+                    strokeWidth: 2,
+                    strokeColor: Colors.green[300]!,
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: Colors.green.withOpacity(0.1),
+              ),
+            ),
+          ],
+          extraLinesData: ExtraLinesData(
+            horizontalLines: [
+              HorizontalLine(
+                y: 0,
+                color: Colors.white.withOpacity(0.1),
+                strokeWidth: 1,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -694,31 +731,20 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       chartTitle,
       Icons.account_balance_wallet,
       Colors.blue,
-      BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
+      LineChart(
+        LineChartData(
+          minY: 0,
           maxY: maxY,
-          barTouchData: BarTouchData(
-            enabled: true,
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (group) => const Color(0xFF1E1E1E),
-              tooltipRoundedRadius: 8,
-              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                final index = group.x.toInt();
-                final sortedDates = dailyData.keys.toList()..sort();
-                if (index >= 0 && index < sortedDates.length) {
-                  final spending = rod.toY;
-                  return BarTooltipItem(
-                    CurrencyHelper.formatPriceCached(spending),
-                    TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                }
-                return BarTooltipItem('', const TextStyle());
-              },
-            ),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: maxY / 5,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: Colors.white.withOpacity(0.05),
+                strokeWidth: 1,
+              );
+            },
           ),
           titlesData: FlTitlesData(
             show: true,
@@ -747,7 +773,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       ),
                     );
                   } else {
-                    // Monthly view: show week range
                     final weekEnd = date.add(const Duration(days: 6));
                     return Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -762,7 +787,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     );
                   }
                 },
-                reservedSize: _selectedPeriod == 'week' ? 40 : 50,
+                reservedSize: _selectedPeriod == 'week' ? 50 : 60,
               ),
             ),
             leftTitles: AxisTitles(
@@ -788,33 +813,46 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               sideTitles: SideTitles(showTitles: false),
             ),
           ),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: false,
-            horizontalInterval: maxY / 5,
-            getDrawingHorizontalLine: (value) {
-              return FlLine(
-                color: Colors.white.withOpacity(0.05),
-                strokeWidth: 1,
-              );
-            },
-          ),
           borderData: FlBorderData(show: false),
-          barGroups: spots.asMap().entries.map((entry) {
-            return BarChartGroupData(
-              x: entry.key,
-              barRods: [
-                BarChartRodData(
-                  toY: entry.value.y,
-                  color: Colors.blue,
-                  width: 20,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(4),
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
+          lineTouchData: LineTouchData(
+            enabled: true,
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (touchedSpot) => const Color(0xFF1E1E1E),
+              tooltipRoundedRadius: 8,
+            ),
+          ),
+          lineBarsData: [
+            LineChartBarData(
+              spots: spots,
+              isCurved: true,
+              color: Colors.blue,
+              barWidth: 3,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) {
+                  return FlDotCirclePainter(
+                    radius: 4,
+                    color: Colors.blue,
+                    strokeWidth: 2,
+                    strokeColor: Colors.blue[300]!,
+                  );
+                },
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                color: Colors.blue.withOpacity(0.1),
+              ),
+            ),
+          ],
+          extraLinesData: ExtraLinesData(
+            horizontalLines: [
+              HorizontalLine(
+                y: 0,
+                color: Colors.white.withOpacity(0.1),
+                strokeWidth: 1,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -966,7 +1004,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                'Most Drank Flavors',
+                _selectedPeriod == 'week'
+                    ? 'Most Drank Flavors for the week'
+                    : 'Most Drank Flavors for the month',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -975,46 +1015,51 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          // Pie Chart
-          SizedBox(
-            height: 220,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 50,
-                sections: _mostDrankFlavors.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final flavor = entry.value;
-                  final count = flavor['drinkCount'] as int;
-                  final percentage = (count / totalDrinks) * 100;
+          // Pie chart in a square to prevent oval distortion
+          Center(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 220, maxHeight: 220),
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 36,
+                    sections: _mostDrankFlavors.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final flavor = entry.value;
+                      final count = flavor['drinkCount'] as int;
+                      final percentage = (count / totalDrinks) * 100;
 
-                  final colors = [
-                    Colors.green,
-                    Colors.blue,
-                    Colors.yellow,
-                    Colors.orange,
-                    Colors.purple,
-                    Colors.pink,
-                    Colors.red,
-                    Colors.teal,
-                    Colors.cyan,
-                    Colors.indigo,
-                  ];
+                      final colors = [
+                        Colors.green,
+                        Colors.blue,
+                        Colors.yellow,
+                        Colors.orange,
+                        Colors.purple,
+                        Colors.pink,
+                        Colors.red,
+                        Colors.teal,
+                        Colors.cyan,
+                        Colors.indigo,
+                      ];
 
-                  return PieChartSectionData(
-                    value: count.toDouble(),
-                    title: percentage > 8
-                        ? '${percentage.toStringAsFixed(0)}%'
-                        : '',
-                    color: colors[index % colors.length],
-                    radius: 80,
-                    titleStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                }).toList(),
+                      return PieChartSectionData(
+                        value: count.toDouble(),
+                        title: percentage > 8
+                            ? '${percentage.toStringAsFixed(0)}%'
+                            : '',
+                        color: colors[index % colors.length],
+                        radius: 72,
+                        titleStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ),
           ),

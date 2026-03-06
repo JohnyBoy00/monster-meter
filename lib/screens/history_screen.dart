@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../database/database_helper.dart';
 import '../models/log_with_flavor.dart';
 import '../utils/currency_helper.dart';
@@ -15,7 +16,9 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final DatabaseHelper _db = DatabaseHelper.instance;
   List<LogWithFlavor> _logs = [];
+  List<Map<String, dynamic>> _mostDrankFlavors = [];
   bool _isLoading = true;
+  bool _isPieChartExpanded = true;
 
   @override
   void initState() {
@@ -23,12 +26,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadLogs();
   }
 
-  /// Loads all logs from the database
+  /// Loads all logs and all-time flavor stats from the database
   Future<void> _loadLogs() async {
     setState(() => _isLoading = true);
     final logs = await _db.getLogsWithFlavors();
+    final flavors = await _db.getMostDrankFlavors(limit: 10);
     setState(() {
       _logs = logs;
+      _mostDrankFlavors = flavors;
       _isLoading = false;
     });
   }
@@ -111,6 +116,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     padding: const EdgeInsets.all(16),
                     children: [
                       _buildAllTimeStats(allTimeStats),
+                      const SizedBox(height: 24),
+                      _buildMostDrankFlavors(),
                       const SizedBox(height: 24),
                       ...groupedLogs.entries.map((entry) {
                         return _buildDateGroup(entry.key, entry.value);
@@ -237,6 +244,231 @@ class _HistoryScreenState extends State<HistoryScreen> {
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+
+  /// Builds the all-time most drank flavors pie chart section
+  Widget _buildMostDrankFlavors() {
+    if (_mostDrankFlavors.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.05),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            'No flavor data available',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final totalDrinks = _mostDrankFlavors
+        .map((f) => f['drinkCount'] as int)
+        .reduce((a, b) => a + b);
+
+    const chartColors = [
+      Colors.green,
+      Colors.blue,
+      Colors.yellow,
+      Colors.orange,
+      Colors.purple,
+      Colors.pink,
+      Colors.red,
+      Colors.teal,
+      Colors.cyan,
+      Colors.indigo,
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.05),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _isPieChartExpanded = !_isPieChartExpanded),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.pie_chart,
+                      color: Colors.purple,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Most Drank Flavors (all time)',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                    ),
+                  ),
+                  Icon(
+                    _isPieChartExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.grey[400],
+                    size: 28,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isPieChartExpanded) ...[
+            const SizedBox(height: 20),
+            Center(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 220, maxHeight: 220),
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 36,
+                    sections: _mostDrankFlavors.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final flavor = entry.value;
+                      final count = flavor['drinkCount'] as int;
+                      final percentage = (count / totalDrinks) * 100;
+                      return PieChartSectionData(
+                        value: count.toDouble(),
+                        title: percentage > 8
+                            ? '${percentage.toStringAsFixed(0)}%'
+                            : '',
+                        color: chartColors[index % chartColors.length],
+                        radius: 72,
+                        titleStyle: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _mostDrankFlavors.take(5).toList().asMap().entries.map((entry) {
+              final index = entry.key;
+              final flavor = entry.value;
+              final count = flavor['drinkCount'] as int;
+              final percentage = (count / totalDrinks) * 100;
+              final color = chartColors[index % chartColors.length];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    if (flavor['imagePath'] != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.asset(
+                          flavor['imagePath'] as String,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.local_drink,
+                                size: 24,
+                                color: color,
+                              ),
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.local_drink,
+                          size: 24,
+                          color: color,
+                        ),
+                      ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            flavor['name'] as String,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$count drinks • ${percentage.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              color: Colors.grey[400],
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+          ],
+        ],
+      ),
     );
   }
 
