@@ -27,7 +27,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -38,9 +38,8 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE flavors ADD COLUMN image_path TEXT');
     }
-    if (oldVersion < 3) {
-      await _ensureDefaultFlavors(db);
-    }
+    // On any upgrade, sync default flavors: insert missing, update existing (ml, caffeine, image)
+    await _ensureDefaultFlavors(db);
   }
 
   /// Returns the list of default flavors (used on create and when adding new defaults on upgrade).
@@ -51,17 +50,19 @@ class DatabaseHelper {
       {'name': 'Pacific Punch', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/pacific-punch.webp'},
       {'name': 'Rio Punch', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/rio-punch.webp'},
       {'name': 'Mango Loco', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/mucho-loco.webp'},
-      {'name': 'Zero Sugar Ultra', 'ml': 500, 'caffeine_mg': 140, 'is_active': 1, 'image_path': 'assets/images/flavors/Zero-sugar-ultra.webp'},
-      {'name': 'Zero Sugar Ultra Rosa', 'ml': 500, 'caffeine_mg': 140, 'is_active': 1, 'image_path': 'assets/images/flavors/Zero-sugar-ultra-rosa.webp'},
+      {'name': 'Zero Sugar Ultra', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/Zero-sugar-ultra.webp'},
+      {'name': 'Zero Sugar Ultra Rosa', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/Zero-sugar-ultra-rosa.webp'},
       {'name': 'Aussie Lemonade', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/Aussie-lemonade.webp'},
       {'name': 'Peachy Keen', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/peachy-keen.webp'},
       {'name': 'The Doctor', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/The-doctor.webp'},
       {'name': 'Lando Norris', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/Lando-norris.webp'},
       {'name': 'Strawberry Dreams', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/strawberry-dreams.webp'},
+      {'name': 'Zero-Sugar Ultra Fiesta', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/ultra-fiesta-mango.webp'},
     ];
   }
 
-  /// Inserts any default flavor that does not yet exist (by name). Used on DB upgrade.
+  /// Ensures default flavors exist and syncs their data (by name). Inserts if missing; updates
+  /// ml, caffeine_mg, image_path if the row exists so corrections in code apply on upgrade.
   Future<void> _ensureDefaultFlavors(Database db) async {
     for (var flavor in _getDefaultFlavors()) {
       final name = flavor['name'] as String;
@@ -72,6 +73,17 @@ class DatabaseHelper {
       );
       if (existing.isEmpty) {
         await db.insert('flavors', flavor);
+      } else {
+        await db.update(
+          'flavors',
+          {
+            'ml': flavor['ml'],
+            'caffeine_mg': flavor['caffeine_mg'],
+            'image_path': flavor['image_path'],
+          },
+          where: 'name = ?',
+          whereArgs: [name],
+        );
       }
     }
   }
