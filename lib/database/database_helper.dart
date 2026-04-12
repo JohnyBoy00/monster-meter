@@ -27,7 +27,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -58,6 +58,7 @@ class DatabaseHelper {
       {'name': 'Lando Norris', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/Lando-norris.webp'},
       {'name': 'Strawberry Dreams', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/strawberry-dreams.webp'},
       {'name': 'Zero-Sugar Ultra Fiesta', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/ultra-fiesta-mango.webp'},
+      {'name': 'Viking Berry', 'ml': 500, 'caffeine_mg': 160, 'is_active': 1, 'image_path': 'assets/images/flavors/viking-berry.webp'},
     ];
   }
 
@@ -490,6 +491,110 @@ class DatabaseHelper {
       LIMIT ?
     ''',
       useRange ? [startDate, endDate, limit] : [limit],
+    );
+
+    return result.map((row) => {
+      'id': row['id'] as int,
+      'name': row['name'] as String,
+      'imagePath': row['image_path'] as String?,
+      'drinkCount': (row['drink_count'] as num?)?.toInt() ?? 0,
+      'totalCaffeine': (row['total_caffeine'] as num?)?.toInt() ?? 0,
+      'totalSpending': (row['total_spending'] as num?)?.toDouble() ?? 0.0,
+    }).toList();
+  }
+
+  /// Returns every flavor with at least one log, ordered by drink count (highest first).
+  /// When [startDate] and [endDate] are both set (yyyy-MM-dd), counts are limited to that range.
+  /// When either is null, treats as all-time (same as both null).
+  Future<List<Map<String, dynamic>>> getFlavorDrinkCountsOrdered({
+    String? startDate,
+    String? endDate,
+  }) async {
+    final db = await database;
+    final useRange = startDate != null && endDate != null;
+    final result = await db.rawQuery(
+      useRange
+          ? '''
+      SELECT 
+        f.id,
+        f.name,
+        f.image_path,
+        COUNT(l.id) as drink_count,
+        SUM(f.caffeine_mg) as total_caffeine,
+        SUM(l.price_paid) as total_spending
+      FROM logs l
+      INNER JOIN flavors f ON l.flavor_id = f.id
+      WHERE DATE(l.timestamp) >= ? AND DATE(l.timestamp) <= ?
+      GROUP BY f.id, f.name, f.image_path
+      ORDER BY drink_count DESC
+    '''
+          : '''
+      SELECT 
+        f.id,
+        f.name,
+        f.image_path,
+        COUNT(l.id) as drink_count,
+        SUM(f.caffeine_mg) as total_caffeine,
+        SUM(l.price_paid) as total_spending
+      FROM logs l
+      INNER JOIN flavors f ON l.flavor_id = f.id
+      GROUP BY f.id, f.name, f.image_path
+      ORDER BY drink_count DESC
+    ''',
+      useRange ? [startDate, endDate] : [],
+    );
+
+    return result.map((row) => {
+      'id': row['id'] as int,
+      'name': row['name'] as String,
+      'imagePath': row['image_path'] as String?,
+      'drinkCount': (row['drink_count'] as num?)?.toInt() ?? 0,
+      'totalCaffeine': (row['total_caffeine'] as num?)?.toInt() ?? 0,
+      'totalSpending': (row['total_spending'] as num?)?.toDouble() ?? 0.0,
+    }).toList();
+  }
+
+  /// All active flavors with how many times each was logged in the period (0 if none).
+  /// [startDate] and [endDate] inclusive yyyy-MM-dd; both null means all-time.
+  Future<List<Map<String, dynamic>>> getAllActiveFlavorsWithDrinkCounts({
+    String? startDate,
+    String? endDate,
+  }) async {
+    final db = await database;
+    final useRange = startDate != null && endDate != null;
+    final result = await db.rawQuery(
+      useRange
+          ? '''
+      SELECT 
+        f.id,
+        f.name,
+        f.image_path,
+        COUNT(l.id) as drink_count,
+        COALESCE(SUM(f.caffeine_mg), 0) as total_caffeine,
+        COALESCE(SUM(l.price_paid), 0) as total_spending
+      FROM flavors f
+      LEFT JOIN logs l ON l.flavor_id = f.id
+        AND DATE(l.timestamp) >= DATE(?)
+        AND DATE(l.timestamp) <= DATE(?)
+      WHERE f.is_active = 1
+      GROUP BY f.id, f.name, f.image_path
+      ORDER BY drink_count DESC, f.name COLLATE NOCASE ASC
+    '''
+          : '''
+      SELECT 
+        f.id,
+        f.name,
+        f.image_path,
+        COUNT(l.id) as drink_count,
+        COALESCE(SUM(f.caffeine_mg), 0) as total_caffeine,
+        COALESCE(SUM(l.price_paid), 0) as total_spending
+      FROM flavors f
+      LEFT JOIN logs l ON l.flavor_id = f.id
+      WHERE f.is_active = 1
+      GROUP BY f.id, f.name, f.image_path
+      ORDER BY drink_count DESC, f.name COLLATE NOCASE ASC
+    ''',
+      useRange ? [startDate, endDate] : [],
     );
 
     return result.map((row) => {

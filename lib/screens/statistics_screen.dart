@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../database/database_helper.dart';
 import '../utils/currency_helper.dart';
+import 'other_flavors_screen.dart';
 
 /// Screen displaying detailed statistics with charts and graphs
 class StatisticsScreen extends StatefulWidget {
@@ -19,7 +20,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   List<Map<String, dynamic>> _mostDrankFlavors = [];
   bool _isLoading = true;
   String _selectedPeriod = 'week'; // 'week' or 'month'
-  
+
+  /// Label for the pie-chart "Other" detail screen (week range or month name).
+  String _flavorPeriodLabel = '';
+
   // Current week/month being viewed
   late DateTime _currentWeekStart;
   late DateTime _currentMonth;
@@ -70,12 +74,29 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       endDate: flavorEnd,
     );
 
+    final String periodLabel;
+    if (_selectedPeriod == 'week') {
+      final weekEnd = _currentWeekStart.add(const Duration(days: 6));
+      periodLabel =
+          'Week of ${DateFormat('MMM d').format(_currentWeekStart)} – ${DateFormat('MMM d, y').format(weekEnd)}';
+    } else {
+      periodLabel = DateFormat('MMMM y').format(
+        DateTime(_currentMonth.year, _currentMonth.month),
+      );
+    }
+
     setState(() {
       _weeklyStats = weekly;
       _monthlyStats = monthly;
       _mostDrankFlavors = flavors;
+      _flavorPeriodLabel = periodLabel;
       _isLoading = false;
     });
+  }
+
+  /// Returns singular or plural drink label for [count].
+  String _drinkCountLabel(int count) {
+    return count == 1 ? '1 drink' : '$count drinks';
   }
 
   /// Navigates to previous week
@@ -971,9 +992,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       );
     }
 
-    final totalDrinks = _mostDrankFlavors
-        .map((f) => f['drinkCount'] as int)
-        .reduce((a, b) => a + b);
+    final periodTotal = _selectedPeriod == 'week'
+        ? ((_weeklyStats['totalDrinks'] as num?)?.toInt() ?? 0)
+        : ((_monthlyStats['totalDrinks'] as num?)?.toInt() ?? 0);
+    final topFive = _mostDrankFlavors.take(5).toList();
+    final sumTopFive = topFive.fold<int>(
+        0, (sum, Map<String, dynamic> f) => sum + (f['drinkCount'] as int));
+    final otherCount = (periodTotal - sumTopFive).clamp(0, periodTotal);
+    final denom = periodTotal > 0 ? periodTotal : 1;
+
+    const chartColors = [
+      Colors.green,
+      Colors.blue,
+      Colors.yellow,
+      Colors.orange,
+      Colors.purple,
+      Colors.pink,
+      Colors.red,
+      Colors.teal,
+      Colors.cyan,
+      Colors.indigo,
+    ];
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1025,39 +1064,38 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   PieChartData(
                     sectionsSpace: 2,
                     centerSpaceRadius: 36,
-                    sections: _mostDrankFlavors.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final flavor = entry.value;
-                      final count = flavor['drinkCount'] as int;
-                      final percentage = (count / totalDrinks) * 100;
-
-                      final colors = [
-                        Colors.green,
-                        Colors.blue,
-                        Colors.yellow,
-                        Colors.orange,
-                        Colors.purple,
-                        Colors.pink,
-                        Colors.red,
-                        Colors.teal,
-                        Colors.cyan,
-                        Colors.indigo,
-                      ];
-
-                      return PieChartSectionData(
-                        value: count.toDouble(),
-                        title: percentage > 8
-                            ? '${percentage.toStringAsFixed(0)}%'
-                            : '',
-                        color: colors[index % colors.length],
-                        radius: 72,
-                        titleStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                    sections: [
+                      ...topFive.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final flavor = entry.value;
+                        final count = flavor['drinkCount'] as int;
+                        final percentage = (count / denom) * 100;
+                        return PieChartSectionData(
+                          value: count.toDouble(),
+                          title: '${percentage.toStringAsFixed(0)}%',
+                          color: chartColors[index % chartColors.length],
+                          radius: 72,
+                          titleStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        );
+                      }),
+                      if (otherCount > 0)
+                        PieChartSectionData(
+                          value: otherCount.toDouble(),
+                          title:
+                              '${((otherCount / denom) * 100).toStringAsFixed(0)}%',
+                          color: Colors.grey[700]!,
+                          radius: 72,
+                          titleStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      );
-                    }).toList(),
+                    ],
                   ),
                 ),
               ),
@@ -1067,107 +1105,200 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           // Legend
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: _mostDrankFlavors.take(5).toList().asMap().entries.map((entry) {
-              final index = entry.key;
-              final flavor = entry.value;
-              final count = flavor['drinkCount'] as int;
-              final percentage = (count / totalDrinks) * 100;
-
-              final colors = [
-                Colors.green,
-                Colors.blue,
-                Colors.yellow,
-                Colors.orange,
-                Colors.purple,
-                Colors.pink,
-                Colors.red,
-                Colors.teal,
-                Colors.cyan,
-                Colors.indigo,
-              ];
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: colors[index % colors.length],
-                        shape: BoxShape.circle,
+            children: [
+              ...topFive.asMap().entries.map((entry) {
+                final index = entry.key;
+                final flavor = entry.value;
+                final count = flavor['drinkCount'] as int;
+                final percentage = (count / denom) * 100;
+                final color = chartColors[index % chartColors.length];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    if (flavor['imagePath'] != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          flavor['imagePath'] as String,
+                      const SizedBox(width: 12),
+                      if (flavor['imagePath'] != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            flavor['imagePath'] as String,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.local_drink,
+                                  size: 24,
+                                  color: color,
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      else
+                        Container(
                           width: 40,
                           height: 40,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.local_drink,
+                            size: 24,
+                            color: color,
+                          ),
+                        ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              flavor['name'] as String,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${_drinkCountLabel(count)} • ${percentage.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              if (otherCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        final fmt = DateFormat('yyyy-MM-dd');
+                        final String rangeStart;
+                        final String rangeEnd;
+                        if (_selectedPeriod == 'week') {
+                          rangeStart = fmt.format(_currentWeekStart);
+                          rangeEnd = fmt.format(
+                            _currentWeekStart.add(const Duration(days: 6)),
+                          );
+                        } else {
+                          rangeStart = fmt.format(
+                            DateTime(_currentMonth.year, _currentMonth.month, 1),
+                          );
+                          rangeEnd = fmt.format(
+                            DateTime(
+                              _currentMonth.year,
+                              _currentMonth.month + 1,
+                              0,
+                            ),
+                          );
+                        }
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (context) => OtherFlavorsScreen(
+                              periodLabel: _flavorPeriodLabel,
+                              startDate: rangeStart,
+                              endDate: rangeEnd,
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[700],
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            SizedBox(
                               width: 40,
                               height: 40,
-                              decoration: BoxDecoration(
-                                color: colors[index % colors.length]
-                                    .withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
+                              child: Center(
+                                child: Image.asset(
+                                  'assets/images/icons/energy-drink.png',
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(
+                                      Icons.category,
+                                      size: 24,
+                                      color: Colors.grey[400],
+                                    );
+                                  },
+                                ),
                               ),
-                              child: Icon(
-                                Icons.local_drink,
-                                size: 24,
-                                color: colors[index % colors.length],
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Other',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${_drinkCountLabel(otherCount)} • ${((otherCount / denom) * 100).toStringAsFixed(1)}%',
+                                    style: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            );
-                          },
-                        ),
-                      )
-                    else
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: colors[index % colors.length].withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.local_drink,
-                          size: 24,
-                          color: colors[index % colors.length],
-                        ),
-                      ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            flavor['name'] as String,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '$count drinks • ${percentage.toStringAsFixed(1)}%',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 13,
+                            Icon(
+                              Icons.chevron_right,
+                              color: Colors.grey[600],
+                              size: 22,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              );
-            }).toList(),
+            ],
           ),
         ],
       ),
