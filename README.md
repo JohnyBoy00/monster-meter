@@ -5,12 +5,13 @@ A mobile app for Android that helps you track your daily Monster Energy drink co
 ## Features
 
 - **Daily Statistics**: View your daily drink count, total caffeine intake, and spending in real-time
-- **Quick Logging**: Add drinks with flavor selection, price, and customizable date/time
+- **Quick Logging**: Add drinks with flavor selection, price (with your currency symbol), and customizable date/time
 - **Flavor Management**: Manage your Monster Energy flavors library with images
-- **History & Statistics**: View all-time statistics and historical drink logs grouped by date
+- **History**: All-time summary stats, a collapsible **most-drunk flavors** pie chart (top five plus an **Other** slice), logs grouped by date, and tap **Other** to open a full flavor list (all-time counts)
+- **Statistics**: Browse **week** or **month** views with line charts (drinks, caffeine, spending) and the same pie pattern; tap **Other** to see only flavors logged in that week or month
 - **Multi-Currency Support**: Choose from 10 different currencies for price tracking
 - **Visual Flavor Display**: See actual Monster Energy can images for each flavor
-- **Local Storage**: All data is stored locally using SQLite - your data stays private
+- **Local Storage**: All data is stored locally using SQLite; your data stays on the device
 
 ## Database Structure
 
@@ -49,6 +50,7 @@ The app uses three main tables:
 - **Date Formatting**: intl package
 - **Path Management**: path package
 - **Local Preferences**: shared_preferences package
+- **Charts**: fl_chart (line and pie charts on History and Statistics)
 
 ## Prerequisites
 
@@ -140,7 +142,9 @@ lib/
 ├── screens/
 │   ├── home_screen.dart               # Main screen with daily stats
 │   ├── add_drink_screen.dart          # Screen to log a new drink
-│   ├── history_screen.dart            # View all logs and statistics
+│   ├── history_screen.dart            # All-time stats, pie chart, logs by date
+│   ├── statistics_screen.dart         # Week/month charts and flavor pie
+│   ├── other_flavors_screen.dart      # Full flavor list (all-time or selected period)
 │   ├── manage_flavors_screen.dart     # Manage flavor library
 │   └── settings_screen.dart           # App settings (currency selection)
 └── utils/
@@ -167,9 +171,17 @@ lib/
 ### Viewing History
 
 1. Tap the history icon in the app bar
-2. View all-time statistics at the top
-3. Scroll through drinks grouped by date
-4. Delete entries by tapping the delete icon on each entry
+2. View all-time statistics at the top and expand/collapse the **most drank flavors** pie chart
+3. Tap **Other** (chevron) on the pie legend to open the full flavor breakdown for all time
+4. Scroll through drinks grouped by date
+5. Delete entries by tapping the delete icon on each entry
+
+### Statistics (week / month)
+
+1. Open **Statistics** from the home app bar
+2. Switch between **Week** and **Month** and use the arrows to change the period
+3. Review line charts and the **most drank flavors** pie chart for that period
+4. Tap **Other** to see only flavors you logged during that week or month
 
 ### Changing Currency
 
@@ -179,19 +191,16 @@ lib/
 
 ## Pre-loaded Flavors
 
-The app comes with these popular Monster Energy flavors pre-configured with images:
+Default flavors are defined in `database_helper.dart` (`_getDefaultFlavors()`). On app upgrades, missing defaults are inserted and known defaults are synced (volume, caffeine, image path) without wiping your logs.
 
-- Original Green (500ml, 160mg caffeine)
-- Pipeline Punch (500ml, 160mg caffeine)
-- Pacific Punch (500ml, 160mg caffeine)
-- Rio Punch (500ml, 160mg caffeine)
-- Mango Loco (500ml, 160mg caffeine)
-- Zero Sugar Ultra (500ml, 140mg caffeine)
-- Zero Sugar Ultra Rosa (500ml, 140mg caffeine)
-- Aussie Lemonade (500ml, 160mg caffeine)
-- Peachy Keen (500ml, 160mg caffeine)
-- The Doctor (500ml, 160mg caffeine)
-- Lando Norris (500ml, 160mg caffeine)
+Examples (500ml cans unless noted; caffeine is per can in the defaults):
+
+- Original, Pipeline Punch, Pacific Punch, Rio Punch, Mango Loco
+- Zero Sugar Ultra, Zero Sugar Ultra Rosa, Zero-Sugar Ultra Fiesta (160mg in defaults)
+- Aussie Lemonade, Peachy Keen, The Doctor, Lando Norris
+- Strawberry Dreams, Viking Berry
+
+Add new assets under `assets/images/flavors/`, append to `_getDefaultFlavors()`, and bump the database **version** in `openDatabase` so existing installs run `onUpgrade` (which re-runs the default-flavor sync).
 
 ## Customization
 
@@ -206,9 +215,9 @@ ColorScheme.fromSeed(
 ),
 ```
 
-### Adding More Flavors
+### Adding More Default Flavors
 
-You can add more default flavors in `lib/database/database_helper.dart` in the `_createDB` method. Make sure to include the `image_path` pointing to an image in the `assets/images/flavors/` directory.
+Edit `_getDefaultFlavors()` in `lib/database/database_helper.dart`, add the image under `assets/images/flavors/`, then increment the database **version** so `onUpgrade` runs. New installs pick up defaults from `_createDB`; existing installs get inserts/updates via `_ensureDefaultFlavors`.
 
 ### Adding Flavor Images
 
